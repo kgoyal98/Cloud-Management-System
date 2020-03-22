@@ -26,9 +26,12 @@ class ClientState(Enum):
 	CONSTANT = 1
 	RELAX = 2
 	BOOTING = 3
+	ERROR = 4
+
 
 client_state = ClientState.RELAX
 cpu_load = 0.0
+
 
 class VM(object):
 	def __init__(self, name=None, ip=None, state=None):
@@ -131,52 +134,55 @@ def get_response(dom, port, message):
 	client_socket.close()
 
 
-def get_cpu_time(vm):
-	conn = libvirt.open('qemu:///system')
-	dom = conn.lookupByName(vm.name)
-	cpu_stats = dom.getCPUStats(True)
-	conn.close()
-	return cpu_stats[0]['cpu_time']
-
-
-def boot_new_server():
-	conn = libvirt.open('qemu:///system')
-	doms = conn.listDefinedDomains()
-	if doms == []:
-		logging.debug('No defined domains')
-	else:
-		dom = conn.lookupByName(doms[0])
-		dom.create()
-		logging.debug(f'Created domain {doms[0]}')
-	
-	conn.close()
-
-
-def shut_one_server():
-	global servers, servers_lock
-	conn = libvirt.open('qemu:///system')
-	doms = conn.listDefinedDomains()
-	servers_lock.acquire()
-	for ip, vm in servers.items():
-		if vm.state == VMState.IDLE:
-			dom = conn.lookupByName(vm.name)
-			r = dom.shutdown()
-			if r == 0:
-				logging.info(f'Shutdown domain {vm.name}')
-				servers[ip].state = VMState.SHUT_OFF
-			else:
-				logging.error(f'Error in shutdown domain {dom.name}')
-			servers_lock.release()
-			return
-	servers_lock.release()
-	logging.error(f'No idle domain to shut')
 
 
 class VMManager(threading.Thread):
-	def __init__(self, cpu_thresh):
+	def __init__(self, cpu_thresh, url):
 		threading.Thread.__init__(self)
 		self.cpu_thresh = cpu_thresh
+		self.url = url
+	
+
+	def get_cpu_time(self, vm):
+		conn = libvirt.open(self.url)
+		dom = conn.lookupByName(vm.name)
+		cpu_stats = dom.getCPUStats(True)
+		conn.close()
+		return cpu_stats[0]['cpu_time']
+
+
+	def boot_new_server(self):
+		conn = libvirt.open(self.url)
+		doms = conn.listDefinedDomains()
+		if doms == []:
+			logging.debug('No defined domains')
+		else:
+			dom = conn.lookupByName(doms[0])
+			dom.create()
+			logging.debug(f'Created domain {doms[0]}')
 		
+		conn.close()
+
+
+	def shut_one_server(self):
+		global servers, servers_lock
+		conn = libvirt.open(self.url)
+		doms = conn.listDefinedDomains()
+		servers_lock.acquire()
+		for ip, vm in servers.items():
+			if vm.state == VMState.IDLE:
+				dom = conn.lookupByName(vm.name)
+				r = dom.shutdown()
+				if r == 0:
+					logging.info(f'Shutdown domain {vm.name}')
+					servers[ip].state = VMState.SHUT_OFF
+				else:
+					logging.error(f'Error in shutdown domain {dom.name}')
+				servers_lock.release()
+				return
+		servers_lock.release()
+		logging.error(f'No idle domain to shut')
+
 	def run(self):
 		global servers, servers_lock, client_state
 		while True:
@@ -185,14 +191,16 @@ class VMManager(threading.Thread):
 			servers_lock.acquire()
 			for ip, vm in servers.items():
 				if vm.state == VMState.BUSY or vm.state == VMState.IDLE:
-					start[ip] = get_cpu_time(vm)
+					start[ip] = self.get_cpu_time(vm)
 			servers_lock.release()
 			time.sleep(30)
 			loads = []
 			servers_lock.acquire()
 			for ip, vm in servers.items():
-				if ip in start and (vm.state == VMState.BUSY or vm.state == VMState.IDLE):
-					vm_load = (get_cpu_time(vm) - start[ip]) / (time.time() - t) / 1e9 * 100
+				if vm.state == VMState.BUSY or vm.state == VMState.IDLE:
+					if ip not in start:
+						start[ip] = 0
+					vm_load = (self.get_cpu_time(vm) - start[ip]) / (time.time() - t) / 1e9 * 100
 					logging.debug(f'CPU load for {vm.name}: {int(vm_load)}%')
 					loads.append(vm_load)
 			servers_lock.release()
@@ -205,20 +213,20 @@ class VMManager(threading.Thread):
 			file = open("load.txt", "w+")
 			file.write(str(average_load))
 			file.close()
-			logging.debug(f'average CPU load: {int(average_load)}%')
+			logging.info(f'average CPU load: {int(average_load)}%')
 			if average_load > self.cpu_thresh and client_state == ClientState.CONSTANT:
-				logging.debug(f'Detected high load')
-				logging.debug('Starting new server...')
-				boot_new_server()
+				logging.info(f'Detected high load, starting new server...')
+				self.boot_new_server()
 				client_state = ClientState.BOOTING
 				logging.debug('Client state: booting')
 			else:
 				n = len(loads)
 				left = (self.cpu_thresh - average_load) * n
 				if left > cpu_thresh and client_state == ClientState.CONSTANT:
-					logging.debug('Detected low load...')
-					shut_one_server()
+					logging.info('Detected low load')
+					self.shut_one_server()
 					client_state = ClientState.RELAX
+					logging.debug('Client state: relax')
 
 			if client_state == ClientState.RELAX:
 				client_state = ClientState.CONSTANT
@@ -242,7 +250,7 @@ if __name__ == '__main__':
 	accept_vm = AcceptVM(accept_vm_port)
 	worker = SendWork(server_port, delta)
 	receive_result = ReceiveResult(receive_result_port)
-	vm_manager = VMManager(cpu_thresh)
+	vm_manager = VMManager(cpu_thresh, url='qemu:///system')
 
 	worker.start()
 	accept_vm.start()
