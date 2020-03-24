@@ -1,6 +1,8 @@
 import socket
 import hashlib
+import threading
 import logging
+import time
 
 
 client_ip = '192.168.122.1'
@@ -31,54 +33,51 @@ def loop_for_t(data, t=5):
     return str(i)
 
 
-class Program(object):
-    def __init__(self, receive_port, client_ip, client_port, server_ready_port, function):
+def notify_client(client_ip, server_ready_port):
+    skt = socket.socket()
+    skt.connect((client_ip, server_ready_port))
+    skt.send(socket.gethostname().encode())
+    logging.info(f'Notified client of the new server')
+    skt.close()
+
+
+class Worker(threading.Thread):
+
+    def __init__(self, receive_port, client_ip, client_port, function):
+        threading.Thread.__init__(self)
         self.receive_port = receive_port
         self.client_ip = client_ip
         self.client_port = client_port
-        self.server_ready_port = server_ready_port
         self.function = function
 
-        self.receive_socket = socket.socket()
-        self.receive_socket.bind(('0.0.0.0', self.receive_port))
-        
-    def notify_client(self):
-        skt = socket.socket()
-        skt.connect((self.client_ip, self.server_ready_port))
-        skt.send(socket.gethostname().encode())
-        logging.info(f'Notified client of the new server')
-        skt.close()
-
-    def receive_work(self):
-        self.receive_socket.listen(1)
-        logging.info(f'Listening for work')
-        conn, address = self.receive_socket.accept()
-        ip = address[0]
-        data = conn.recv(1024).decode()
-        logging.info(f'Received work from {ip}: {data}')
-        conn.close()
-        return data
-
     def send_result(self, result):
-        self.send_socket = socket.socket()
-        self.send_socket.connect((self.client_ip, self.client_port))
-        self.send_socket.send(result.encode())
+        send_socket = socket.socket()
+        send_socket.connect((self.client_ip, self.client_port))
+        send_socket.send(result.encode())
         logging.info(f'Sent to client ip {client_ip} result {result}')
-        self.send_socket.close()
+        send_socket.close()
 
     def run(self):
-        self.notify_client()
+        receive_socket = socket.socket()
+        receive_socket.bind(('0.0.0.0', self.receive_port))
+        receive_socket.listen(1)
         while True:
-            work = self.receive_work()
+            logging.info(f'Listening for work')
+            conn, address = receive_socket.accept()
+            ip = address[0]
+            work = conn.recv(1024).decode()
+            logging.info(f'Received work from {ip}: {work}')
+            conn.close()
             result = self.function(work)
             self.send_result(result)
+        receive_socket.close()
 
-    def close(self):
-        self.receive_socket.close()
 
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s: %(message)s', filename='/home/kunal/log',
                         filemode='a')
-    p = Program(server_port, client_ip, client_port, server_ready_port, loop_for_t)
-    p.run()
+    worker = Worker(server_port, client_ip, client_port, loop_for_t)
+    worker.start()
+    time.sleep(1)
+    notify_client(client_ip, server_ready_port)

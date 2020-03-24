@@ -11,6 +11,5 @@
 #
 # By default this script does nothing.
 
-rm /home/kunal/log /home/kunal/error
-/usr/bin/python3 /home/kunal/server.py 2> /home/kunal/error &
+/usr/bin/python3 /home/kunal/server.py &
 exit 0

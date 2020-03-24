@@ -10,16 +10,18 @@ import libvirt
 accept_vm_port = 5000
 server_port = 5001
 receive_result_port = 5002
+cpu_thresh = 90.0
 delta = 5
 servers = {}
 servers_lock = threading.Lock()
-cpu_thresh = 90.0
+running = True
 
 class VMState(Enum):
 	IDLE = 1
 	BUSY = 2
 	BOOTING = 3
 	SHUT_OFF = 4
+	ERROR = 5
 
 
 class ClientState(Enum):
@@ -29,7 +31,7 @@ class ClientState(Enum):
 	ERROR = 4
 
 
-client_state = ClientState.RELAX
+client_state = ClientState.CONSTANT
 cpu_load = 0.0
 
 
@@ -46,12 +48,11 @@ class AcceptVM(threading.Thread):
 		self.port = port
 		
 	def run(self):
-		global servers, servers_lock, client_state
-		host = '0.0.0.0'
+		global servers, servers_lock, client_state, running
 		skt = socket.socket()
-		skt.bind((host, self.port))
+		skt.bind(('0.0.0.0', self.port))
 		skt.listen(10)
-		while True:
+		while running:
 			conn, address = skt.accept()
 			ip = str(address[0])
 			name = conn.recv(1024).decode()
@@ -61,9 +62,10 @@ class AcceptVM(threading.Thread):
 			servers[ip] = vm
 			servers_lock.release()
 			conn.close()
-			client_state = ClientState.RELAX
-			logging.debug('Client state: relaxed')
-
+			if client_state == ClientState.BOOTING:
+				client_state = ClientState.RELAX
+				logging.debug('Client state: relaxed')
+		skt.close()
 
 class ReceiveResult(threading.Thread):
 	def __init__(self, port):
@@ -71,12 +73,11 @@ class ReceiveResult(threading.Thread):
 		self.port = port
 		
 	def run(self):
-		global servers, servers_lock
-		host = '0.0.0.0'
+		global servers, servers_lock, running
 		skt = socket.socket()
-		skt.bind((host, self.port))
+		skt.bind(('0.0.0.0', self.port))
 		skt.listen(10)
-		while True:
+		while running:
 			conn, address = skt.accept()
 			ip = str(address[0])
 			data = conn.recv(1024).decode()
@@ -84,8 +85,8 @@ class ReceiveResult(threading.Thread):
 			servers_lock.acquire()
 			servers[ip].state = VMState.IDLE
 			servers_lock.release()
-
 			conn.close()
+		skt.close()
 
 
 class SendWork(threading.Thread):
@@ -95,9 +96,9 @@ class SendWork(threading.Thread):
 		self.delta = delta
 		
 	def run(self):
-		global servers, servers_lock
+		global servers, servers_lock, running
 		i = 1
-		while True:
+		while running:
 			word = 'word' + str(i)
 			done = False
 			logging.debug('Searching for idle server...')
@@ -109,7 +110,13 @@ class SendWork(threading.Thread):
 						server_ip = ip
 						port = self.server_port
 						skt = socket.socket()
-						skt.connect((server_ip, port))
+						skt.settimeout(3)
+						try:
+							skt.connect((server_ip, port))
+						except socket.error as exc:
+							logging.error(f'Socket error for VM {vm.name}: {exc}')
+							vm.state = VMState.ERROR
+							continue
 						skt.send(word.encode())
 						servers[ip].state = VMState.BUSY
 						logging.info(f"Sent work to {vm.name}: {word}")
@@ -122,21 +129,14 @@ class SendWork(threading.Thread):
 				# time.sleep(1)
 			time.sleep(delta)
 			i+=1
-		
-
-def get_response(dom, port, message):
-	host = dom.interfaceAddresses(0)['vnet0']['addrs'][0]['addr']
-	client_socket = socket.socket()
-	client_socket.connect((host, port))
-	client_socket.send(message.encode())
-	data = client_socket.recv(1024).decode()
-	logging.info(f'Response from {dom.name} server:\n{message}: {data}')
-	client_socket.close()
 
 
+def get_ip_address(dom):
+	ip = dom.interfaceAddresses(0)['vnet0']['addrs'][0]['addr']
 
 
 class VMManager(threading.Thread):
+
 	def __init__(self, cpu_thresh, url):
 		threading.Thread.__init__(self)
 		self.cpu_thresh = cpu_thresh
@@ -146,9 +146,14 @@ class VMManager(threading.Thread):
 	def get_cpu_time(self, vm):
 		conn = libvirt.open(self.url)
 		dom = conn.lookupByName(vm.name)
-		cpu_stats = dom.getCPUStats(True)
-		conn.close()
-		return cpu_stats[0]['cpu_time']
+		dom_state = dom.info()[0]
+		if dom_state != 1:
+			logging.error(f'VM {vm.name} not running')
+			return -1
+		else:
+			cpu_stats = dom.getCPUStats(True)
+			conn.close()
+			return cpu_stats[0]['cpu_time']
 
 
 	def boot_new_server(self):
@@ -159,7 +164,7 @@ class VMManager(threading.Thread):
 		else:
 			dom = conn.lookupByName(doms[0])
 			dom.create()
-			logging.debug(f'Created domain {doms[0]}')
+			logging.info(f'Created domain {doms[0]}')
 		
 		conn.close()
 
@@ -167,7 +172,6 @@ class VMManager(threading.Thread):
 	def shut_one_server(self):
 		global servers, servers_lock
 		conn = libvirt.open(self.url)
-		doms = conn.listDefinedDomains()
 		servers_lock.acquire()
 		for ip, vm in servers.items():
 			if vm.state == VMState.IDLE:
@@ -183,37 +187,69 @@ class VMManager(threading.Thread):
 		servers_lock.release()
 		logging.error(f'No idle domain to shut')
 
+	def shut_all_servers(self):
+		global servers, servers_lock
+		conn = libvirt.open(self.url)
+		servers_lock.acquire()
+		for ip, vm in servers.items():
+			dom = conn.lookupByName(vm.name)
+			dom_state = dom.info()[0]
+			r = -1
+			if dom_state != 5:
+				r = dom.shutdown()
+			if r == 0:
+				logging.info(f'Shutdown domain {vm.name}')
+				servers[ip].state = VMState.SHUT_OFF
+			else:
+				logging.error(f'Error in shutdown domain {dom.name}')
+		servers_lock.release()
+
 	def run(self):
-		global servers, servers_lock, client_state
-		while True:
-			start = {}
-			t = time.time()
+		global servers, servers_lock, client_state, running
+		while running:
+			start_cpu_time = {}
+			start_time = time.time()
 			servers_lock.acquire()
+			running_vm = 0
 			for ip, vm in servers.items():
 				if vm.state == VMState.BUSY or vm.state == VMState.IDLE:
-					start[ip] = self.get_cpu_time(vm)
+					cpu_time = self.get_cpu_time(vm)
+					if cpu_time == -1:
+						vm.state = VMState.ERROR
+						continue
+					start_cpu_time[ip] = cpu_time
+				if not (vm.state == VMState.SHUT_OFF or vm.state == VMState.ERROR):
+					running_vm += 1
 			servers_lock.release()
+			if running_vm == 0 and client_state == ClientState.CONSTANT:
+				logging.info(f'No running VM, starting new server...')
+				self.boot_new_server()
+				client_state = ClientState.BOOTING
+				logging.debug('Client state: booting')
 			time.sleep(30)
 			loads = []
 			servers_lock.acquire()
 			for ip, vm in servers.items():
 				if vm.state == VMState.BUSY or vm.state == VMState.IDLE:
-					if ip not in start:
-						start[ip] = 0
-					vm_load = (self.get_cpu_time(vm) - start[ip]) / (time.time() - t) / 1e9 * 100
+					if ip not in start_cpu_time:
+						start_cpu_time[ip] = 0
+					cpu_time = self.get_cpu_time(vm)
+					if cpu_time == -1:
+						vm.state = VMState.ERROR
+						continue
+					vm_load = (cpu_time - start_cpu_time[ip]) / (time.time() - start_time) / 1e9 * 100
+					# logging.debug(f'{cpu_time}, {start_cpu_time[ip]}, {(time.time() - t)} {vm_load}')
 					logging.debug(f'CPU load for {vm.name}: {int(vm_load)}%')
 					loads.append(vm_load)
 			servers_lock.release()
 			average_load = 0
 			if loads:
 				average_load = np.mean(loads)
-			else:
-				logging.debug(f'No running VM')
 
+			logging.info(f'average CPU load: {int(average_load)}%')
 			file = open("load.txt", "w+")
 			file.write(str(average_load))
 			file.close()
-			logging.info(f'average CPU load: {int(average_load)}%')
 			if average_load > self.cpu_thresh and client_state == ClientState.CONSTANT:
 				logging.info(f'Detected high load, starting new server...')
 				self.boot_new_server()
@@ -222,7 +258,7 @@ class VMManager(threading.Thread):
 			else:
 				n = len(loads)
 				left = (self.cpu_thresh - average_load) * n
-				if left > cpu_thresh and client_state == ClientState.CONSTANT:
+				if n > 1 and left > cpu_thresh and client_state == ClientState.CONSTANT:
 					logging.info('Detected low load')
 					self.shut_one_server()
 					client_state = ClientState.RELAX
@@ -232,21 +268,12 @@ class VMManager(threading.Thread):
 				client_state = ClientState.CONSTANT
 				logging.debug('Client state: constant')
 
-
+		self.shut_all_servers()
 
 
 if __name__ == '__main__':
-	# conn = libvirt.open('qemu:///system')
-	# if conn == None:
-	# 	print('Failed to open connection to qemu:///system', file=sys.stderr)
-	# while True:
-	# 	for dom in conn.listAllDomains():
-	# 		ip = dom.interfaceAddresses(0)['vnet0']['addrs'][0]['addr']
-	# 		servers[ip] = VM(name=dom.name, ip=ip, domain=dom, connection=conn)
-
 	logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s: %(message)s', filename='log',
                         filemode='a')
-	# servers['192.168.122.207'] = VM(ip='192.168.122.207', state=VMState.IDLE)
 	accept_vm = AcceptVM(accept_vm_port)
 	worker = SendWork(server_port, delta)
 	receive_result = ReceiveResult(receive_result_port)
@@ -258,7 +285,14 @@ if __name__ == '__main__':
 	vm_manager.start()
 
 	while True:
-		delta = float(input())
-		worker.delta = delta
+		inp = input()
+		if inp == 'exit':
+			running = False
+			worker.join()
+			accept_vm.join()
+			receive_result.join()
+			vm_manager.join()
+			break
 
-	conn.close()
+		delta = float(inp)
+		worker.delta = delta
