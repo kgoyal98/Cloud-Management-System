@@ -11,10 +11,11 @@ accept_vm_port = 5000
 server_port = 5001
 receive_result_port = 5002
 cpu_thresh = 90.0
-delta = 5
+delta = 6
 servers = {}
 servers_lock = threading.Lock()
 running = True
+
 
 class VMState(Enum):
 	IDLE = 1
@@ -31,7 +32,7 @@ class ClientState(Enum):
 	ERROR = 4
 
 
-client_state = ClientState.CONSTANT
+client_state = ClientState.RELAX
 cpu_load = 0.0
 
 
@@ -66,6 +67,7 @@ class AcceptVM(threading.Thread):
 				client_state = ClientState.RELAX
 				logging.debug('Client state: relaxed')
 		skt.close()
+
 
 class ReceiveResult(threading.Thread):
 	def __init__(self, port):
@@ -103,7 +105,6 @@ class SendWork(threading.Thread):
 			done = False
 			logging.debug('Searching for idle server...')
 			while not done:
-				# logging.info(f'servers {servers}')
 				servers_lock.acquire()
 				for ip, vm in servers.items():
 					if vm.state == VMState.IDLE:
@@ -124,9 +125,6 @@ class SendWork(threading.Thread):
 						done = True
 						break
 				servers_lock.release()
-				# if not done:
-				# 	logging.debug('No available server')
-				# time.sleep(1)
 			time.sleep(delta)
 			i+=1
 
@@ -272,7 +270,7 @@ class VMManager(threading.Thread):
 
 
 if __name__ == '__main__':
-	logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s: %(message)s', filename='log',
+	logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s: %(message)s', filename='log',
                         filemode='a')
 	accept_vm = AcceptVM(accept_vm_port)
 	worker = SendWork(server_port, delta)
@@ -287,11 +285,13 @@ if __name__ == '__main__':
 	while True:
 		inp = input()
 		if inp == 'exit':
+			logging.info('Exit command received')
 			running = False
+			vm_manager.join()
+			print('press Ctrl-C to exit')
 			worker.join()
 			accept_vm.join()
 			receive_result.join()
-			vm_manager.join()
 			break
 
 		delta = float(inp)

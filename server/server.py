@@ -73,7 +73,6 @@ class Worker(threading.Thread):
         receive_socket.close()
 
 
-
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s: %(message)s', filename='/home/kunal/log',
                         filemode='a')

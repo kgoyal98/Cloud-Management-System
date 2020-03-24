@@ -1,8 +1,2 @@
-threading
-enum
-logging
-socket
-time
-numpy
-sys
-libvirt
+numpy==1.18.2
+libvirt-python==6.0.0
