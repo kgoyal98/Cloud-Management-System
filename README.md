@@ -41,6 +41,7 @@ The application finds the collision strings with same hash as the client sends. 
 ```
 python3 client.py
 ```
-- Power on any one VM
-- The inter request time (in seconds) can be configured by entering it in the client console to adjust load
-- When done enter ```exit``` in the console
+- The inter request time (in seconds) can be configured any number of times by entering it in the client console to adjust load
+- When done, entering ```exit``` in the console will shut down all the running VMs. It can also be done via virt-manager
+
+The log file for client will be created in the current directory while running the command
