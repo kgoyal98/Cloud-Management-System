@@ -1,13 +1,13 @@
 # Cloud-Management-System
-This is a cloud management system uilt over the libvirt API. This is an autoscaling socket based client-server application in which servers perform some computation for each request and send suitable responses back to the client. 
-The application elastically scales the server application by spawning more virtual machines in response to varying load and it also accounts for server failures.
+This is a cloud management system built over the libvirt API. This is an autoscaling socket based client-server application in which servers perform some computation for each request and send suitable responses back to the client. 
+The application **elastically scales** the server application by spawning more virtual machines in response to varying load and it also accounts for **server failures**.
 ## Getting Started
 
 
 
 ### Prerequisites
 
-Requirements for the client and server are in client/requirements.txt and server/requirements.txt respectively. The code is developed in Python 3.6.9
+Requirements for the client is in client/requirements.txt. The code is developed in Python 3.6.9
 
 
 ### Installing
