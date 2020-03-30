@@ -246,9 +246,6 @@ class VMManager(threading.Thread):
 				average_load = np.mean(loads)
 
 			logging.info(f'average CPU load: {int(average_load)}%')
-			file = open("load.txt", "w+")
-			file.write(str(average_load))
-			file.close()
 			if average_load > self.cpu_thresh and client_state == ClientState.CONSTANT:
 				logging.info(f'Detected high load, starting new server...')
 				self.boot_new_server()
