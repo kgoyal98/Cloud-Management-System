@@ -74,9 +74,9 @@ class Worker(threading.Thread):
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s: %(message)s', filename='/home/kunal/log',
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s: %(message)s', filename='log',
                         filemode='a')
-    worker = Worker(server_port, client_ip, client_port, loop_for_t)
+    worker = Worker(server_port, client_ip, client_port, calculate_collision_string)
     worker.start()
     time.sleep(1)
     notify_client(client_ip, server_ready_port)

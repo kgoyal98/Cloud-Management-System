@@ -36,11 +36,10 @@ sudo cp rc.local /etc/
 The application finds the collision strings with same hash as the client sends. You can change the functionality by changing the function in server code and the requests in client code. In server.py, add the function that you want the server to compute in the file and pass it to the Program object initialisation 
 
 - Shut down all the VMs
-- Run client.py file on client
+- Run client.py file on client. Pass the url argument. If you are using QEMU/KVM locally then pass qemu:///system, otherwise as per your VM setup.
 
 ```
-python3 client.py
+python3 client.py --loglevel info --url qemu:///system
 ```
-- Power on any one VM
-- The inter request time (in seconds) can be configured by entering it in the client console to adjust load
-- When done enter ```exit``` in the console
+- The inter request time (in seconds) can be configured by entering it in the client console to adjust load (Initial time is 10 sec)
+- When done enter ```exit``` in the console to shut down all the running VMs

@@ -6,12 +6,13 @@ import time
 import numpy as np
 import sys
 import libvirt
+import argparse
 
 accept_vm_port = 5000
 server_port = 5001
 receive_result_port = 5002
 cpu_thresh = 90.0
-delta = 6
+delta = 10
 servers = {}
 servers_lock = threading.Lock()
 running = True
@@ -32,7 +33,7 @@ class ClientState(Enum):
 	ERROR = 4
 
 
-client_state = ClientState.RELAX
+client_state = ClientState.CONSTANT
 cpu_load = 0.0
 
 
@@ -162,7 +163,7 @@ class VMManager(threading.Thread):
 		else:
 			dom = conn.lookupByName(doms[0])
 			dom.create()
-			logging.info(f'Created domain {doms[0]}')
+			logging.info(f'Powered on domain {doms[0]}')
 		
 		conn.close()
 
@@ -270,12 +271,20 @@ class VMManager(threading.Thread):
 
 
 if __name__ == '__main__':
-	logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s: %(message)s', filename='log',
+	parser = argparse.ArgumentParser()
+	parser.add_argument("--url", type=str, default='qemu:///system')
+	parser.add_argument("--loglevel", type=str, default='info')
+
+	args = parser.parse_args()
+	numeric_level = getattr(logging, args.loglevel.upper(), None)
+	if not isinstance(numeric_level, int):
+		raise ValueError('Invalid log level: %s' % loglevel)
+	logging.basicConfig(level=numeric_level, format='%(asctime)s - %(levelname)s: %(message)s', filename='log',
                         filemode='a')
 	accept_vm = AcceptVM(accept_vm_port)
 	worker = SendWork(server_port, delta)
 	receive_result = ReceiveResult(receive_result_port)
-	vm_manager = VMManager(cpu_thresh, url='qemu:///system')
+	vm_manager = VMManager(cpu_thresh, url=args.url)
 
 	worker.start()
 	accept_vm.start()
