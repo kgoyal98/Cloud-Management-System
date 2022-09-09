@@ -1,2 +1,0 @@
-numpy==1.18.2
-libvirt-python==6.0.0

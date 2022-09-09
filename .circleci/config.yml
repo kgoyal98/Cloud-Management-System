@@ -1,0 +1,19 @@
+version: 2.1
+
+setup: true
+
+orbs:
+  dynamic: bjd2385/dynamic-continuation@3.2.0
+
+commands: {}
+
+jobs: {}
+
+workflows:
+  on-commit:
+    jobs:
+      - dynamic/extend:
+          context: orb-publishing
+          modules: |
+            .
+            scripts
