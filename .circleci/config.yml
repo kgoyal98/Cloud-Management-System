@@ -63,7 +63,7 @@ jobs:
 
 
 workflows:
-  on-commit:
+  autoscaler:
     jobs:
       - dynamic/continue:
           context: orb-publishing
@@ -75,8 +75,6 @@ workflows:
               ignore:
                 - master
 
-  on-tag:
-    jobs:
       - generate-release:
           name: Generate release from tag
           context: github
