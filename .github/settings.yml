@@ -4,7 +4,7 @@
 repository:
   # See https://docs.github.com/en/rest/reference/repos#update-a-repository for all available settings.
   name: autoscaler
-  description: KVM VM autoscaler daemon on ZFS datasets
+  description: KVM autoscaler daemon on ZFS datasets
   homepage: https://github.com/bjd2385/autoscaler
   topics: KVM, virtual machine, libvirt, autoscaling, autoscaler
   private: false
