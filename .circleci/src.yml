@@ -1,12 +1,25 @@
 version: 2.1
 
 executors:
-  python3:
-    docker:
-      - image: cimg/python:3.10.2
-  ubuntu:
+  default:
     docker:
       - image: cimg/base:stable
+
+  python3-10:
+    docker:
+      - image: cimg/python:3.10.6
+
+  python3-9:
+    docker:
+      - image: cimg/python:3.9.12
+
+  python3-8:
+    docker:
+      - image: cimg/python:3.8.13
+
+orbs:
+  shellcheck: circleci/shellcheck@3.1.1
+
 
 commands:
   pylint:
@@ -26,7 +39,9 @@ commands:
           command: pip install -r requirements.txt
       - run:
           name: Pylint
-          command: pylint --rcfile=<< parameters.configuration_file >> << parameters.modules_path >>
+          command: |
+            pip install pylint
+            pylint --rcfile=<< parameters.configuration_file >> << parameters.modules_path >>
 
   mypy:
     description: Run mypy
@@ -45,38 +60,79 @@ commands:
           command: pip install -r requirements.txt
       - run:
           name: MyPy
-          command: mypy --config-file << parameters.configuration_file >> << parameters.modules_path >>
-  pypi:
-    description: Publish a package to PyPI.
-    steps:
-      - run:
-          name: Build package.
-          command: python setup.py sdist bdist_wheel
-      - run:
-          name: Publish package to PyPI.
           command: |
-            pip install twine
-            twine upload dist/* -u $PYPI_USERNAME -p $API_TOKEN
+            pip install mypy
+            mypy --config-file << parameters.configuration_file >> << parameters.modules_path >> --python-version "$(python --version | grep -oP "[0-9].[0-9]+")"
+
+
 jobs:
   # TODO: Make it so I don't have to check out the code and install deps every time to reduce cost. Cache venv.
   pylint:
-    executor: python3
+    executor: python3-10
     resource_class: small
+    parameters:
+      modules_path:
+        type: string
+        description: Path to modules directory in package.
+        default: src
+      configuration_file:
+        type: string
+        description: Path to pylint configuration file
+        default: .pylintrc
     steps:
       - checkout
-      - pylint
+      - pylint:
+          modules_path: << parameters.modules_path >>
+          configuration_file: << parameters.configuration_file >>
   mypy:
-    executor: python3
+    executor: << parameters.executor >>
     resource_class: small
+    parameters:
+      modules_path:
+        type: string
+        description: Path to modules directory in package.
+        default: src
+      configuration_file:
+        type: string
+        description: Path to mypy configuration file
+        default: .mypy.ini
+      executor:
+        type: executor
+        description: Python executor to run this job with.
     steps:
       - checkout
-      - mypy
-  publish:
-    executor: python3
+      - mypy:
+          modules_path: << parameters.modules_path >>
+          configuration_file: << parameters.configuration_file >>
+
+  publish-pypi:
+    executor: python3-10
     resource_class: small
     steps:
       - checkout
       - pypi
+
+  test-bats:
+    executor: python3-10
+    resource_class: small
+    parameters:
+      executable:
+        type: string
+        description: Location of the executable to run tests.
+        default: ./scripts/tests.sh
+    steps:
+      - checkout
+      - run:
+          name: Install development package
+          command: |
+            python setup.py develop
+            sudo ln -s /home/circleci/.pyenv/versions/$(python --version | awk '{ print $2 }')/bin/gitlabci-lint /usr/local/bin/gitlabci-lint
+            gitlabci-lint --version
+      - run:
+          name: Run bats tests
+          command: |
+            sudo apt update && sudo apt install -y bats
+            << parameters.executable >>
 
 
 workflows:
@@ -84,22 +140,34 @@ workflows:
 
   on-commit:
     jobs:
-      - pylint:
-          filters:
-            branches:
-              ignore:
-                - master
-      - mypy:
+      - shellcheck/check:
+          dir: .
+          exclude: SC2148
           filters:
             branches:
               ignore:
                 - master
 
-  on-merge:
-    jobs:
-      - publish:
-          context: pypi
+      - pylint:
           filters:
             branches:
-              only:
+              ignore:
                 - master
+
+      - mypy:
+          name: mypy [<< matrix.executor >>]
+          matrix:
+            parameters:
+              executor: [python3-10, python3-9, python3-8]
+            alias: mypy
+          filters:
+            branches:
+              ignore:
+                - master
+
+      # - test-bats:
+      #     context: gitlab
+      #     filters:
+      #       branches:
+      #         ignore:
+      #           - master

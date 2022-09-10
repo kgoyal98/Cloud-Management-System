@@ -1,0 +1,15 @@
+{
+  "name": "kvm-autoscaler",
+  "description": "Autoscaling for KVM virtual machines over the libvirt API",
+  "repository": "git@github.com:bjd2385/autoscaler.git",
+  "author": "bjd2385 <bjd2385.linux@gmail.com>",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "install:dependencies": "./scripts/dependencies.sh",
+    "install:deps": "yarn install:dependencies",
+    "pylint": "./scripts/pylint.sh",
+    "develop": "./scripts/develop.sh",
+    "clean": "./scripts/clean.sh"
+  }
+}
