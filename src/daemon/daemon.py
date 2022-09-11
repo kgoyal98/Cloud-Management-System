@@ -6,6 +6,7 @@ Main loop of this software package.
 
 def main() -> None:
     """
+    Main loop of the daemon.
     """
 
 

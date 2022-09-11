@@ -42,7 +42,7 @@ class ZFS(AbstractContextManager):
     def __init__(self, poolName: str) -> None:
         self.poolName = poolName
 
-    def __enter__(self) -> ZFS:
+    def __enter__(self) -> 'ZFS':
         return self
 
     def __exit__(self, *args: Any) -> None:
