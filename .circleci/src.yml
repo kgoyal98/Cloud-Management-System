@@ -133,9 +133,7 @@ jobs:
 
 
 workflows:
-  version: 2
-
-  on-commit:
+  src:
     jobs:
       - pylint:
           filters:
