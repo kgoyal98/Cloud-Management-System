@@ -71,6 +71,7 @@ workflows:
             .
             scripts
             src
+            tests
           filters:
             branches:
               ignore:
