@@ -110,25 +110,25 @@ jobs:
       - pypi
 
 
-workflows:
-  src:
-    jobs:
-      - pylint:
-          filters:
-            branches:
-              ignore:
-                - master
+workflows: {}
+  # src:
+  #   jobs:
+  #     - pylint:
+  #         filters:
+  #           branches:
+  #             ignore:
+  #               - master
 
-      - mypy:
-          name: mypy [<< matrix.executor >>]
-          matrix:
-            parameters:
-              executor: [python3-10, python3-9, python3-8]
-            alias: mypy
-          filters:
-            branches:
-              ignore:
-                - master
+  #     - mypy:
+  #         name: mypy [<< matrix.executor >>]
+  #         matrix:
+  #           parameters:
+  #             executor: [python3-10, python3-9, python3-8]
+  #           alias: mypy
+  #         filters:
+  #           branches:
+  #             ignore:
+  #               - master
 
       # - test-bats:
       #     context: gitlab
