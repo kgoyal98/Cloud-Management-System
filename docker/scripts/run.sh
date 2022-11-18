@@ -1,2 +1,2 @@
 #! /bin/bash
-# Start the backend Flask API.
+# Start the backend api.
