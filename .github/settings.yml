@@ -1,73 +1,10 @@
 
 # These settings are synced to GitHub by https://probot.github.io/apps/settings/
+_extends: .github
 
 repository:
   # See https://docs.github.com/en/rest/reference/repos#update-a-repository for all available settings.
   name: autoscaler
-  description: KVM autoscaler daemon on ZFS datasets
+  description: Libvirt autoscaler
   homepage: https://github.com/bjd2385/autoscaler
   topics: KVM, virtual machine, libvirt, autoscaling, autoscaler
-  private: false
-  has_issues: true
-  has_projects: false
-  has_wiki: false
-  has_downloads: false
-  default_branch: master
-
-  allow_squash_merge: true
-  allow_merge_commit: true
-  allow_rebase_merge: true
-
-  delete_branch_on_merge: true
-
-  enable_automated_security_fixes: false
-  enable_vulnerability_alerts: true
-
-labels:
-  - name: bug
-    color: CC0000
-    description: An issue with the system 🐛.
-
-  - name: feature
-    # If including a `#`, make sure to wrap it with quotes!
-    color: "#336699"
-    description: New functionality.
-
-  - name: Help Wanted
-    # Provide a new name to rename an existing label
-    new_name: first-timers-only
-
-branches:
-  - name: master
-    # https://docs.github.com/en/rest/reference/repos#update-branch-protection
-    # Branch Protection settings. Set to null to disable
-    protection:
-      # Required. Require at least one approving review on a pull request, before merging. Set to null to disable.
-      required_pull_request_reviews:
-        # The number of approvals required. (1-6)
-        required_approving_review_count: 1
-        # Dismiss approved reviews automatically when a new commit is pushed.
-        dismiss_stale_reviews: true
-        # Blocks merge until code owners have reviewed.
-        require_code_owner_reviews: true
-        # Specify which users and teams can dismiss pull request reviews. Pass an empty dismissal_restrictions object to disable. User and team dismissal_restrictions are only available for organization-owned repositories. Omit this parameter for personal repositories.
-        dismissal_restrictions:
-          users: []
-          teams: []
-
-      # Required. Require status checks to pass before merging. Set to null to disable
-      required_status_checks:
-        # Required. Require branches to be up to date before merging.
-        strict: true
-        # Required. The list of status checks to require in order to merge into this branch
-        contexts: [on-commit]
-
-      # Required. Enforce all configured restrictions for administrators. Set to true to enforce required status checks for repository administrators. Set to null to disable.
-      enforce_admins: null
-      # Prevent merge commits from being pushed to matching branches
-      required_linear_history: true
-      # Required. Restrict who can push to this branch. Team and user restrictions are only available for organization-owned repositories. Set to null to disable.
-      restrictions:
-        apps: []
-        users: []
-        teams: []
