@@ -72,7 +72,15 @@ At this time, I'm hoping to cover the following items with an initial v0.1.0-rel
             retention:
               strategy: delete
               keep:
+          cloud-init:
+            inline: |
+              # Should contain an inline cloud-init script by which to customize VMs in this group, or you can specify a "file: "-keyword to read it from some location on-disk. All environment variables should be evaluated and replaced before bundling with the domains' disks?
+
+            # file:
+
+          # Group of hosts on which to provision VMs.
           hostGroup: group-1
+
           replacement:
             strategy: rollingupdate
             # replace one VM at a time if there's an image update in a group in this file, etc.
@@ -93,6 +101,12 @@ At this time, I'm hoping to cover the following items with an initial v0.1.0-rel
             increment: 1
             # Seconds, minutes or hours until another action can be taken once a change is made. Basically puts a pause on metrics evaluation.
             cooldown: 5m
+
+            metrics:
+              # I need to work out how to determine percentages and such here. Disk IO isn't as straightforward. CPU could be based on VM load average? And memory could be based more-easily on a percentage.
+              io: 80
+              cpu: 80
+              memory: 80
         mordor:
           ...
 
