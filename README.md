@@ -10,91 +10,91 @@ At this time, I'm hoping to cover the following simple items.
 
 1. Collect metrics for disk IO, CPU and memory, provided by the libvirt API, and form a decision, based on a configuration file in YAML format /etc/autoscaler/autoscaler.yaml, whether or not to scale up or down, or wait an additional configured period before the daemon checks in on these metrics again.
 
-  I'm still planning out the schema of the config file below.
+    I'm still planning out the schema of the config file below.
 
-  ```yaml
-  version: v1
-  scaling:
-    databases:
-      # State is where the ASGs current state is stored so it can be queried without making additional calls to libvirt.
-      state:
-        store:
-          type: mysql
-          connection:
-          ip: localhost
-          port: 3306
-          credentials:
-            env:
-              username: $MYSQL_USERNAME
-              password: $MYSQL_PASSWORD
+    ```yaml
+    version: v1
+    scaling:
+      databases:
+        # State is where the ASGs current state is stored so it can be queried without making additional calls to libvirt.
+        state:
+          store:
+            type: mysql
+            connection:
+            ip: localhost
+            port: 3306
+            credentials:
+              env:
+                username: $MYSQL_USERNAME
+                password: $MYSQL_PASSWORD
 
-      metrics:
-        # Define where to store metrics: either in-memory or influxdb, since that's a time-series db I'm familiar with for now.
-        store:
-          type: local
+        metrics:
+          # Define where to store metrics: either in-memory or influxdb, since that's a time-series db I'm familiar with for now.
+          store:
+            type: local
 
-        # store:
-        #   type: influxdb
-        #   url: http://localhost:8086/
-        #   credentials:
-        #     env:
-        #       username: $INFLUXDB_USERNAME
-        #       password: $INFLUXDB_PASSWORD
+          # store:
+          #   type: influxdb
+          #   url: http://localhost:8086/
+          #   credentials:
+          #     env:
+          #       username: $INFLUXDB_USERNAME
+          #       password: $INFLUXDB_PASSWORD
 
-        # Seconds, minutes or hours between collecting metrics from all hosts on their VMs.
-        interval: 30s
+          # Seconds, minutes or hours between collecting metrics from all hosts on their VMs.
+          interval: 30s
 
-        # How often to evaluate all 'trailing' metrics.
-        evaluate: 1m
+          # How often to evaluate all 'trailing' metrics.
+          evaluate: 1m
 
-        # Seconds, minutes or hours of collected metrics to cache and evaluate upon (must be >=interval)
-        trailing: 21m
+          # Seconds, minutes or hours of collected metrics to cache and evaluate upon (must be >=interval)
+          trailing: 21m
 
-    hostGroups:
-      group-1:
-        # All hosts in group-1 should be pretty similar. Hosts differing by any great amount should be
-        # managed as a separate group?
-        - qemu+ssh:///system
-        - qemu+ssh://domain-1/system
-        - qemu+ssh://domain-2/system
+      hostGroups:
+        group-1:
+          # All hosts in group-1 should be pretty similar. Hosts differing by any great amount should be
+          # managed as a separate group?
+          - qemu+ssh:///system
+          - qemu+ssh://domain-1/system
+          - qemu+ssh://domain-2/system
 
-    groups:
-      # Unique keys defining separate VM groups to track. These keys should represent naming prefixes (?)
-      rivendell:
-        # This image and an associated libvirt template should exist on one of the hosts.
-        image:
-          name: template-ubuntu20.04-server
-          # Options could be 'migrate' - migrate a copy of the domain to every host, or 'centralized' - hosts are using a centralized block store.
-          imageMigration: migrate
-          # Whether or not to delete the former image on all hosts but one.
-          retention:
-            strategy: delete
-            keep:
-        hostGroup: group-1
-        replacement:
-          strategy: rollingupdate
-          # replace one VM at a time if there's an image update in a group in this file, etc.
-          maxUnavailable: 1
+      groups:
+        # Unique keys defining separate VM groups to track. These keys should represent naming prefixes (?)
+        rivendell:
+          # This image and an associated libvirt template should exist on one of the hosts.
+          image:
+            name: template-ubuntu20.04-server
+            # Options could be 'migrate' - migrate a copy of the domain to every host, or 'centralized' - hosts are using a centralized block store.
+            imageMigration: migrate
+            # Whether or not to delete the former image on all hosts but one.
+            retention:
+              strategy: delete
+              keep:
+          hostGroup: group-1
+          replacement:
+            strategy: rollingupdate
+            # replace one VM at a time if there's an image update in a group in this file, etc.
+            maxUnavailable: 1
 
-        networking:
-          # A static IP range or list of IPs should be given to a group.
-          addresses:
-            - 192.168.5.2-192.168.5.254
-          subnet: 255.255.255.0
-          gateway: 192.168.1.1
+          networking:
+            # A static IP range or list of IPs should be given to a group.
+            addresses:
+              - 192.168.5.2-192.168.5.254
+            subnet: 255.255.255.0
+            gateway: 192.168.1.1
 
-        scaling:
-          # maxNodes should not be larger than the number of IP addresses determined to be available in the range.
-          maxNodes: 10
-          minNodes: 3
-          # Increment up or down by this many nodes any time a change is required to state.
-          increment: 1
-          # Seconds, minutes or hours until another action can be taken once a change is made. Basically puts a pause on metrics evaluation.
-          cooldown: 5m
-      mordor:
-        ...
+          scaling:
+            # maxNodes should not be larger than the number of IP addresses determined to be available in the range.
+            maxNodes: 10
+            minNodes: 3
+            # Increment up or down by this many nodes any time a change is required to state.
+            increment: 1
+            # Seconds, minutes or hours until another action can be taken once a change is made. Basically puts a pause on metrics evaluation.
+            cooldown: 5m
+        mordor:
+          ...
 
-  ```
+    ```
 
 2. Provision new VMs on a list of hosts, reachable with the libvirt API.
     - Eventually, a strategy should be respected for placing VMs, such as round-robin (rr), resource-based (resource) i.e. the host with the most free CPU, memory and disk IO should be selected), or
