@@ -64,13 +64,13 @@ jobs:
 
 
 workflows:
-  ddns:
+  docker-influxdb:
     jobs:
       - docker-github:
           name: "Docker: influxdb"
           context:
             - github
-          image-name: ddns
+          image-name: influxdb
           args: ''
           commit-tag: false
           path: docker/influxdb

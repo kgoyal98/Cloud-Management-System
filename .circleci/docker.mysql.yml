@@ -64,13 +64,13 @@ jobs:
 
 
 workflows:
-  ddns:
+  docker-mysql:
     jobs:
       - docker-github:
           name: "Docker: mysql"
           context:
             - github
-          image-name: ddns
+          image-name: mysql
           args: ''
           commit-tag: false
           path: docker/mysql

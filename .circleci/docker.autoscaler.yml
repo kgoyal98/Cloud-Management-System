@@ -64,13 +64,13 @@ jobs:
 
 
 workflows:
-  ddns:
+  docker-autoscaler:
     jobs:
       - docker-github:
-          name: Publish
+          name: "Docker: autoscaler"
           context:
             - github
-          image-name: ddns
+          image-name: autoscaler
           args: ''
           commit-tag: false
           path: docker/autoscaler
