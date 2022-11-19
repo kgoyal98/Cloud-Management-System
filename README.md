@@ -90,7 +90,7 @@ At this time, I'm hoping to cover the following simple items.
           # Increment up or down by this many nodes any time a change is required to state.
           increment: 1
           # Seconds, minutes or hours until another action can be taken once a change is made. Basically puts a pause on metrics evaluation.
-          cooldown: m
+          cooldown: 5m
       mordor:
         ...
 
