@@ -68,11 +68,12 @@ workflows:
       - dynamic/continue:
           context: orb-publishing
           modules: |
-            /
             /scripts
             /src
             /tests
-            /docker
+            /docker/autoscaler
+            /docker/influxdb
+            /docker/mysql
             /helm
           filters:
             branches:

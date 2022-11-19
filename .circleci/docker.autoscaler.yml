@@ -1,0 +1,76 @@
+version: 2.1
+
+
+executors:
+  default:
+    docker:
+      - image: cimg/base:stable
+
+  docker:
+    machine:
+      image: ubuntu-2204:2022.07.1
+
+
+orbs: {}
+
+
+commands: {}
+
+
+jobs:
+  docker-github:
+    resource_class: medium
+    executor: docker
+    parameters:
+      image-name:
+        description: Name of the image.
+        default: ''
+        type: string
+      tag:
+        description: Name of the tag for the image.
+        default: latest
+        type: string
+      commit-tag:
+        description: Whether or not to push an additional tag to the registry with the commit hash as the tag.
+        default: false
+        type: boolean
+      args:
+        description: Additional args string to add to the build command. (E.g., '--build-arg HELLO=WORLD'.)
+        default: ''
+        type: string
+      path:
+        description: Path to the Dockerfile.
+        default: .
+        type: string
+    steps:
+      - checkout
+      - run:
+          name: Login to ghcr.io
+          command: |+
+            echo $GITHUB_TOKEN | docker login ghcr.io -u $GITHUB_USERNAME --password-stdin
+      - run:
+          name: Build and push tag
+          command: |+
+            docker build << parameters.path >> -t ghcr.io/$GITHUB_USERNAME/<< parameters.image-name >>:<< parameters.tag >> << parameters.args >>
+            docker push ghcr.io/$GITHUB_USERNAME/<< parameters.image-name >>:<< parameters.tag >>
+      - when:
+          condition: << parameters.commit-tag >>
+          steps:
+            - run:
+                name: Push commit tag
+                command: |+
+                  docker tag ghcr.io/$GITHUB_USERNAME/<< parameters.image-name >>:<< parameters.tag >> ghcr.io/$GITHUB_USERNAME/<< parameters.image-name >>:$CIRCLE_SHA1
+                  docker push ghcr.io/$GITHUB_USERNAME/<< parameters.image-name >>:$CIRCLE_SHA1
+
+
+workflows:
+  ddns:
+    jobs:
+      - docker-github:
+          name: Publish
+          context:
+            - github
+          image-name: ddns
+          args: ''
+          commit-tag: false
+          path: docker/autoscaler

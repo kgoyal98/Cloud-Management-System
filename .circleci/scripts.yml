@@ -11,6 +11,6 @@ workflows:
             parameters:
               dir:
                 - scripts/
-                - docker/scripts/
+                - docker/autoscaler/scripts/
             alias: shellcheck
           external_sources: true
