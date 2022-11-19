@@ -1,4 +1,4 @@
-[![bjd2385](https://circleci.com/github/bjd2385/autoscaler.svg?style=svg)](https://github.com/bjd2385/autoscaler)
+[![bjd2385](https://circleci.com/github/bjd2385/autoscaler.svg?style=svg&circle-token=938cb53c2e72e9aa088b5adb106e9db6c4b68486)](https://github.com/bjd2385/autoscaler)
 
 # libvirt autoscaler
 
