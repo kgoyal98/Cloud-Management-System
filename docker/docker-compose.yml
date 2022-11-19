@@ -1,2 +1,77 @@
-version: 3.9
-services: {}
+version: "3.9"
+services:
+  state:
+    image: ghcr.io/bjd2385/mysql-doppler:latest
+    build: ./mysql
+    depends_on: []
+    privileged: false
+    container_name: mysql
+    ports:
+      - 3306:3306
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+        reservations:
+          cpus: "0.5"
+          memory: 500M
+      restart_policy:
+        condition: on-failure
+        delay: 1s
+        max_attempts: 3
+        window: 240s
+    environment:
+      - DOPPLER_TOKEN
+
+  metrics:
+    image: ghcr.io/bjd2385/influxdb-doppler:latest
+    build: ./influxdb
+    depends_on: []
+    privileged: false
+    container_name: influxdb
+    ports:
+      - 8086:8086
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+        reservations:
+          cpus: "0.5"
+          memory: 500M
+      restart_policy:
+        condition: on-failure
+        delay: 1s
+        max_attempts: 3
+        window: 240s
+    environment:
+      - DOPPLER_TOKEN
+
+  autoscaler:
+    image: ghcr.io/bjd2385/autoscaler:latest
+    build: ./autoscaler
+    depends_on:
+      - metrics
+      - state
+    privileged: true
+    container_name: autoscaler
+    ports: []
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+        reservations:
+          cpus: "0.5"
+          memory: 500M
+      restart_policy:
+        condition: on-failure
+        delay: 1s
+        max_attempts: 3
+        window: 240s
+    environment:
+      - DOPPLER_TOKEN

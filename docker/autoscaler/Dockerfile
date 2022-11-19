@@ -12,10 +12,11 @@ RUN apt-get update && apt-get install -y apt-transport-https ca-certificates cur
     apt-get -y install doppler
 
 # Clean up for transport
-RUN rm -rf /var/lib/apt/lists/*
+RUN rm -rf /var/lib/apt/lists/* && mkdir -p /autoscaler
 
 WORKDIR /autoscaler
 COPY scripts/run.sh .
+RUN chmod +x /autoscaler/run.sh
 
 ENTRYPOINT [ "doppler", "run", "--" ]
 CMD [ "./run.sh" ]

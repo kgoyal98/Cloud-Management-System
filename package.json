@@ -10,6 +10,9 @@
     "install:deps": "yarn install:dependencies",
     "pylint": "./scripts/pylint.sh",
     "develop": "./scripts/develop.sh",
-    "clean": "./scripts/clean.sh"
+    "clean": "./scripts/clean.sh",
+    "docker:compose:up": "./scripts/compose-up.sh",
+    "docker:compose:build": "./scripts/compose-build.sh",
+    "docker:compose:down": "./scripts/compose-down.sh"
   }
 }

@@ -1,6 +1,6 @@
-[![bjd2385](https://circleci.com/gh/bjd2385/autoscaler.svg?style=svg&circle-token=938cb53c2e72e9aa088b5adb106e9db6c4b68486)](https://github.com/bjd2385/autoscaler)
-
 # libvirt autoscaler
+
+[![bjd2385](https://circleci.com/gh/bjd2385/autoscaler.svg?style=svg&circle-token=938cb53c2e72e9aa088b5adb106e9db6c4b68486)](https://github.com/bjd2385/autoscaler)
 
 This project is a PoC for autoscaling via [libvirt](https://libvirt.org/) virtual machines (primarily KVM-based).
 
@@ -60,7 +60,7 @@ At this time, I'm hoping to cover the following items with an initial v0.1.0-rel
           - qemu+ssh://domain-1/system
           - qemu+ssh://domain-2/system
 
-      groups:
+      autoscalingGroups:
         # Unique keys defining separate VM groups to track. These keys should represent naming prefixes (?)
         rivendell:
           # This image and an associated libvirt template should exist on one of the hosts.
