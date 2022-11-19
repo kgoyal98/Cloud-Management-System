@@ -5,7 +5,7 @@ setup: true
 
 
 orbs:
-  dynamic: bjd2385/dynamic-continuation@3.2.0
+  dynamic: bjd2385/dynamic-continuation@3.4.0
 
 
 executors:
@@ -68,10 +68,12 @@ workflows:
       - dynamic/continue:
           context: orb-publishing
           modules: |
-            .
-            scripts
-            src
-            tests
+            /
+            /scripts
+            /src
+            /tests
+            /docker
+            /helm
           filters:
             branches:
               ignore:
