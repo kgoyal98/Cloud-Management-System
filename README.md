@@ -1,3 +1,5 @@
+[![bjd2385](https://circleci.com/github/bjd2385/autoscaler.svg?style=svg)](https://github.com/bjd2385/autoscaler)
+
 # libvirt autoscaler
 
 This project is a PoC for autoscaling via [libvirt](https://libvirt.org/) virtual machines (primarily KVM-based).
